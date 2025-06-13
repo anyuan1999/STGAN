@@ -10,12 +10,12 @@ from torch_geometric.loader import NeighborLoader
 from tqdm import tqdm
 from gensim.models import Word2Vec
 from torch_geometric import utils
-from ..utils.helper import helper
-from ..model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel,MultiHeadSelfAttention
-from ..model.GAT import GAT
-from ..utils.graphutils_cadets import add_attributes,prepare_graph
-from ..model.PositionalEncoder import PositionalEncoder
-from ..model.TGN import TemporalGraphNetwork
+from utils.helper import helper
+from model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel,MultiHeadSelfAttention
+from model.GAT import GAT
+from utils.graphutils_cadets import add_attributes,prepare_graph
+from model.PositionalEncoder import PositionalEncoder
+from model.TGN import TemporalGraphNetwork
 
 # 加载全局的 Word2Vec 模型和编码器
 w2vmodel = Word2Vec.load("word2vec_cadets_E3.model")
