@@ -13,12 +13,12 @@ from sklearn.utils import class_weight
 from tqdm import tqdm
 from gensim.models import Word2Vec
 from torch_geometric import utils
-from ..model.PositionalEncoder import PositionalEncoder
-from ..model.TGN import TemporalGraphNetwork
-from ..model.GAT import GAT
-from ..model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel, MultiHeadSelfAttention
-from ..utils.graphutils_cadets import add_attributes, prepare_graph
-from ..utils.word2vec_utils import train_word2vec
+from model.PositionalEncoder import PositionalEncoder
+from model.TGN import TemporalGraphNetwork
+from model.GAT import GAT
+from model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel, MultiHeadSelfAttention
+from utils.graphutils_cadets import add_attributes, prepare_graph
+from utils.word2vec_utils import train_word2vec
 
 
 encoder = PositionalEncoder(30)
