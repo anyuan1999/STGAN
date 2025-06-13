@@ -13,12 +13,12 @@ from sklearn.utils import class_weight
 from tqdm import tqdm
 from gensim.models import Word2Vec
 from torch_geometric import utils
-from ..model.PositionalEncoder import PositionalEncoder
-from ..model.TGN import TemporalGraphNetwork
-from ..model.GAT import GAT
-from ..model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel, MultiHeadSelfAttention
-from ..utils.graphutils_trace import add_attributes, prepare_graph
-from ..utils.word2vec_utils import train_word2vec
+from model.PositionalEncoder import PositionalEncoder
+from model.TGN import TemporalGraphNetwork
+from model.GAT import GAT
+from model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel, MultiHeadSelfAttention
+from utils.graphutils_trace import add_attributes, prepare_graph
+from utils.word2vec_utils import train_word2vec
 
 
 encoder = PositionalEncoder(30)
@@ -58,7 +58,7 @@ def main():
         w2vmodel = Word2Vec.load(model_path)
         print("Word2Vec model loaded.")
     else:
-        phrases = [...]  # 在这里定义你的训练数据
+        phrases = phrases  # 在这里定义你的训练数据
         dataset_name = "trace"  # 根据需要设置数据集名称
         w2vmodel = train_word2vec(phrases, dataset_name, vector_size=30, window=5, min_count=1, workers=8, epochs=300)
         print("Word2Vec model trained and saved.")
@@ -71,7 +71,7 @@ def main():
                                         num_heads=4).to(device)
     optimizer = optim.Adam(
         list(model.parameters()) + list(tgn_model.parameters()) + list(gat_model.parameters()),
-        lr=0.1, weight_decay=5e-4
+        lr=0.001, weight_decay=5e-4
     )
     class_weights = class_weight.compute_class_weight(class_weight=None, classes=np.arange(num_classes), y=labels)
     class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
