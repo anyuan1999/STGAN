@@ -10,29 +10,34 @@ from torch_geometric.loader import NeighborLoader
 from tqdm import tqdm
 from gensim.models import Word2Vec
 from torch_geometric import utils
-from ..utils.helper import helper
-from ..model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel,MultiHeadSelfAttention
-from ..model.GAT import GAT
-from ..utils.graphutils_theia import add_attributes,prepare_graph
-from ..model.PositionalEncoder import PositionalEncoder
-from ..model.TGN import TemporalGraphNetwork
+from utils.helper import helper
+from model.MultiHeadSelfAttention import MultiHeadSelfAttentionModel,MultiHeadSelfAttention
+from model.GAT import GAT
+from utils.graphutils_theia import add_attributes,prepare_graph
+from model.PositionalEncoder import PositionalEncoder
+from model.TGN import TemporalGraphNetwork
 
 
 
 # 加载全局的 Word2Vec 模型和编码器
-w2vmodel = Word2Vec.load("word2vec_theia_E3.model")
+w2vmodel = Word2Vec.load("../train/word2vec_theia.model")
 encoder = PositionalEncoder(30)
 
+# def infer_word2vec_embedding(document, w2vmodel):
+#     vecs = [w2vmodel.wv[w] for w in document if w in w2vmodel.wv]
+#     if not vecs:
+#         return np.zeros(30, dtype=np.float32)
+#     # 明确堆叠为 [seq_len, 30]
+#     arr = np.stack(vecs, axis=0).astype(np.float32)
+#     return arr.mean(axis=0)
 
-def infer_word2vec_embedding(document):
-    word_embeddings = [w2vmodel.wv[word] for word in document if word in w2vmodel.wv]
-    if not word_embeddings:
-        return np.zeros(30)  # 修改为 15 与 PositionalEncoder 的 d_model 一致
-    output_embedding = np.array(word_embeddings)  # 先将列表转换为 numpy 数组
-    output_embedding = torch.tensor(output_embedding, dtype=torch.float)  # 然后再转换为 PyTorch 张量
-    output_embedding = encoder.embed(output_embedding)  # 使用 embed 方法
-    output_embedding = output_embedding.detach().cpu().numpy()
-    return np.mean(output_embedding, axis=0)
+
+def infer_word2vec_embedding(document, w2vmodel):
+    vecs = [w2vmodel.wv[w] for w in document if w in w2vmodel.wv]
+    if not vecs:
+        return np.zeros(30, dtype=np.float32)
+    arr = np.stack(vecs, axis=0).astype(np.float32)  # [seq_len, 30]
+    return arr.mean(axis=0)
 
 
 def main():
@@ -46,8 +51,8 @@ def main():
     df = pd.DataFrame(data, columns=['actorID', 'actor_type', 'objectID', 'object', 'action', 'timestamp'])
     df = df.dropna()
     df.sort_values(by='timestamp', ascending=True, inplace=True)
-    df = add_attributes(df, "../../../data_raw/theia/ta1-theia-e3-official-6r.json.8")
-    with open("../../../data_files/theia.json", "r") as json_file:
+    df = add_attributes(df, "../data/theia/ta1-theia-e3-official-6r.json.8")
+    with open("../data/theia/theia.json", "r") as json_file:
         GT_mal = set(json.load(json_file))
     phrases, labels, edges, mapp, node_types, edges_attr = prepare_graph(df)
     all_ids = list(df['actorID']) + list(df['objectID'])
@@ -64,7 +69,7 @@ def main():
     flag = torch.tensor([True] * graph.num_nodes, dtype=torch.bool).to(device)
 
     print(f"Graph Created")
-    for m_n in range(100):
+    for m_n in range(20):
         print(f"Epoch: {m_n}")
         gat_model.load_state_dict(
             torch.load(
@@ -91,7 +96,7 @@ def main():
             with torch.no_grad():
                 current_phrases = [phrases[idx] for idx in subg.n_id.tolist()]
                 # 假设 infer_word2vec_embedding(p) 返回的是 numpy.ndarray
-                word2vec_embeddings = [infer_word2vec_embedding(p) for p in current_phrases]
+                word2vec_embeddings = [infer_word2vec_embedding(p,w2vmodel) for p in current_phrases]
 
                 # 将列表转换为 numpy 数组
                 word2vec_np_array = np.array(word2vec_embeddings)
