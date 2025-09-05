@@ -55,12 +55,12 @@ def main():
         w2vmodel = Word2Vec.load(model_path)
         print("Word2Vec model loaded.")
     else:
-        phrases = phrases  # 在这里定义你的训练数据
-        dataset_name = "cadets"  # 根据需要设置数据集名称
+        phrases = phrases
+        dataset_name = "cadets"
         w2vmodel = train_word2vec(phrases, dataset_name, vector_size=30, window=5, min_count=1, workers=8, epochs=300)
         print("Word2Vec model trained and saved.")
     num_classes = 6
-    # 如果 node_types 是一个包含 numpy.ndarray 的列表
+
     node_types = np.array(node_types)  # 转换为 numpy 数据
     # Initialize models
     gat_model = GAT(in_channel=6, out_channel=30).to(device)
@@ -69,7 +69,7 @@ def main():
     tgn_model = TemporalGraphNetwork(in_channels=60, out_channels=32).to(device)
     optimizer = optim.Adam(
         list(model.parameters()) + list(tgn_model.parameters()) + list(gat_model.parameters()),
-        lr=0.0005, weight_decay=5e-4
+        lr=0.001, weight_decay=5e-4
     )
     class_weights = class_weight.compute_class_weight(class_weight=None, classes=np.arange(num_classes), y=labels)
     class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
@@ -82,7 +82,7 @@ def main():
     graph.n_id = torch.arange(graph.num_nodes)
     mask = torch.tensor([True] * graph.num_nodes, dtype=torch.bool)
     # Training model
-    for epoch in range(100):
+    for epoch in range(50):
         print(f"Epoch: {epoch}")
 
         loader = NeighborLoader(graph, num_neighbors=[15, 10], batch_size=26000, input_nodes=mask)
@@ -93,13 +93,10 @@ def main():
             optimizer.zero_grad()
             # 获取当前子图中的短语或节点ID
             current_phrases = [phrases[idx] for idx in subg.n_id.tolist()]
-            # 假设 infer_word2vec_embedding(p) 返回的是 numpy.ndarray
-            word2vec_embeddings = [infer_word2vec_embedding(p) for p in current_phrases]
+            word2vec_embeddings = [infer_word2vec_embedding(p,w2vmodel) for p in current_phrases]
 
             # 将列表转换为 numpy 数组
             word2vec_np_array = np.array(word2vec_embeddings)
-
-            # 将 numpy 数组转换为 PyTorch 张量
             word2vec_output = torch.tensor(word2vec_np_array, dtype=torch.float).to(device)
             # Process node features with GAT
             gat_output = gat_model(subg.x, subg.edge_index)
@@ -124,11 +121,8 @@ def main():
             tgn_model.eval()
             model.eval()
             with torch.no_grad():
-                # 获取当前子图中的短语或节点ID
                 current_phrases = [phrases[idx] for idx in subg.n_id.tolist()]
-                # 假设 infer_word2vec_embedding(p) 返回的是 numpy.ndarray
-                word2vec_embeddings = [infer_word2vec_embedding(p) for p in current_phrases]
-
+                word2vec_embeddings = [infer_word2vec_embedding(p,w2vmodel) for p in current_phrases]
                 # 将列表转换为 numpy 数组
                 word2vec_np_array = np.array(word2vec_embeddings)
 
