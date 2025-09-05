@@ -1,9 +1,9 @@
 import os
+
+import joblib
 import pandas as pd
 import torch
 import torch.nn as nn
-import json
-import pickle
 import numpy as np
 import torch.optim as optim
 from torch_geometric.data import Data
@@ -13,6 +13,7 @@ from sklearn.utils import class_weight
 from tqdm import tqdm
 from gensim.models import Word2Vec
 from torch_geometric import utils
+
 from model.PositionalEncoder import PositionalEncoder
 from model.TGN import TemporalGraphNetwork
 from model.GAT import GAT
@@ -41,7 +42,7 @@ def main():
     print(f"Device: {device}")
 
     # Load and process data
-    with open("../../../data_raw/trace/trace_test.txt") as f:
+    with open("../data/trace/trace_train.txt") as f:
         data = f.read().split('\n')
     data = [line.split('\t') for line in data if line]
     df = pd.DataFrame(data, columns=['actorID', 'actor_type', 'objectID', 'object', 'action', 'timestamp'])
@@ -49,11 +50,11 @@ def main():
     df.sort_values(by='timestamp', ascending=True, inplace=True)
     print(f"DataFrame Shape: {df.shape}")
 
-    df = add_attributes(df, "../data/trace/ta1-trace-e3-official-1.json.4")
+    df = add_attributes(df, "../data/trace/ta1-trace-e3-official-1.json.1")
     print(f"Attributes added")
     phrases, labels, edges, mapp, node_types, edges_attr = prepare_graph(df)
     print(f"Phrases, Labels, Edges, and Mapping prepared")
-    model_path = "word2vec_trace_model.model"
+    model_path = "word2vec_trace.model"
     if os.path.exists(model_path):
         w2vmodel = Word2Vec.load(model_path)
         print("Word2Vec model loaded.")
@@ -71,21 +72,26 @@ def main():
                                         num_heads=4).to(device)
     optimizer = optim.Adam(
         list(model.parameters()) + list(tgn_model.parameters()) + list(gat_model.parameters()),
-        lr=0.001, weight_decay=5e-4
+        lr=0.0005, weight_decay=5e-4
     )
     class_weights = class_weight.compute_class_weight(class_weight=None, classes=np.arange(num_classes), y=labels)
     class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
     criterion = CrossEntropyLoss(weight=class_weights, reduction='mean')
-    graph = Data(x=torch.tensor(node_types, dtype=torch.float).to(device),
-                 y=torch.tensor(labels, dtype=torch.long).to(device),
-                 edge_index=torch.tensor(edges, dtype=torch.long).to(device),
-                 edge_time=torch.tensor(edges_attr, dtype=torch.float).to(device))
+    graph = Data(
+        x=torch.tensor(np.array(node_types), dtype=torch.float).to(device),
+        y=torch.tensor(labels, dtype=torch.long).to(device),
+        edge_index=torch.tensor(edges, dtype=torch.long).to(device),
+        edge_time=torch.tensor(edges_attr, dtype=torch.float).to(device)
+    )
+
     graph.n_id = torch.arange(graph.num_nodes)
     mask = torch.tensor([True] * graph.num_nodes, dtype=torch.bool)
-    # Training model
-    for epoch in range(100):
-        print(f"Epoch: {epoch}")
 
+    # Training model
+    for epoch in range(50):
+        print(f"Epoch: {epoch}")
+        all_final_outputs = []
+        all_labels = []
         loader = NeighborLoader(graph, num_neighbors=[15, 10], batch_size=26000, input_nodes=mask)
         total_loss = 0
         for subg in tqdm(loader, desc="Training", leave=False):
@@ -114,8 +120,11 @@ def main():
             loss.backward()
             optimizer.step()
             total_loss += loss.item() * subg.batch_size
+            all_final_outputs.append(final_output.detach().cpu().numpy())
+            all_labels.append(subg.y.cpu().numpy())
             del subg
             torch.cuda.empty_cache()
+
 
         loader = NeighborLoader(graph, num_neighbors=[15, 10], batch_size=26000, input_nodes=mask)
         for subg in tqdm(loader, desc="Evaluation", leave=False):
@@ -142,10 +151,13 @@ def main():
                 tgn_output = tgn_output.unsqueeze(1)
                 # Self-Attention output
                 final_output = model(tgn_output)
+
                 sorted, indices = final_output.view(-1, num_classes).sort(dim=1, descending=True)
                 conf = (sorted[:, 0] - sorted[:, 1]) / sorted[:, 0]
                 conf = (conf - conf.min()) / conf.max()
                 pred = indices[:, 0]
+
+
                 cond = (pred == subg.y) & (conf >= 0.8)
                 mask[subg.n_id[cond]] = False
         torch.save(gat_model.state_dict(),
@@ -155,6 +167,7 @@ def main():
         torch.save(model.state_dict(),
                    f'../trained_weights/trace/selfattention{epoch}.pth')
 
+    print("down")
 
 if __name__ == "__main__":
     main()
