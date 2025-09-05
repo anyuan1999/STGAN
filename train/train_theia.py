@@ -24,15 +24,14 @@ from utils.word2vec_utils import train_word2vec
 encoder = PositionalEncoder(30)
 
 
+
+
 def infer_word2vec_embedding(document, w2vmodel):
-    word_embeddings = [w2vmodel.wv[word] for word in document if word in w2vmodel.wv]
-    if not word_embeddings:
-        return np.zeros(30)  # 修改为 30 与 PositionalEncoder 的 d_model 一致
-    output_embedding = np.array(word_embeddings)
-    output_embedding = torch.tensor(output_embedding, dtype=torch.float)
-    output_embedding = encoder.embed(output_embedding)
-    output_embedding = output_embedding.detach().cpu().numpy()
-    return np.mean(output_embedding, axis=0)
+    vecs = [w2vmodel.wv[w] for w in document if w in w2vmodel.wv]
+    if not vecs:
+        return np.zeros(30, dtype=np.float32)
+    arr = np.stack(vecs, axis=0).astype(np.float32)
+    return arr.mean(axis=0)
 
 
 def main():
@@ -59,14 +58,14 @@ def main():
         dataset_name = "theia"  # 根据需要设置数据集名称
         w2vmodel = train_word2vec(phrases, dataset_name, vector_size=30, window=5, min_count=1, workers=8, epochs=300)
         print("Word2Vec model trained and saved.")
-    num_classes = 6
-    # 如果 node_types 是一个包含 numpy.ndarray 的列表
-    node_types = np.array(node_types)  # 转换为 numpy 数组
-    # Initialize models
-    gat_model = GAT(in_channel=6, out_channel=30).to(device)
-    # 初始化模型，指定 in_channels, out_channels 和 num_heads
-    model = MultiHeadSelfAttentionModel(in_channels=32, out_channels=6, num_classes=num_classes, num_heads=4).to(device)
+
+
+    num_classes =  6
+    gat_model = GAT(in_channel=num_classes, out_channel=30).to(device)
     tgn_model = TemporalGraphNetwork(in_channels=60, out_channels=32).to(device)
+    model = MultiHeadSelfAttentionModel(in_channels=32, out_channels=6, num_classes=num_classes,
+                                        num_heads=4).to(device)
+
     optimizer = optim.Adam(
         list(model.parameters()) + list(tgn_model.parameters()) + list(gat_model.parameters()),
         lr=0.0005, weight_decay=5e-4
@@ -75,16 +74,24 @@ def main():
     class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
     criterion = CrossEntropyLoss(weight=class_weights, reduction='mean')
     # Create dynamic graph
-    graph = Data(x=torch.tensor(node_types, dtype=torch.float).to(device),
-                 y=torch.tensor(labels, dtype=torch.long).to(device),
-                 edge_index=torch.tensor(edges, dtype=torch.long).to(device),
-                 edge_time=torch.tensor(edges_attr, dtype=torch.float).to(device))
+    graph = Data(
+        x=torch.tensor(np.array(node_types), dtype=torch.float).to(device),
+        y=torch.tensor(labels, dtype=torch.long).to(device),
+        edge_index=torch.tensor(edges, dtype=torch.long).to(device),
+        edge_time=torch.tensor(edges_attr, dtype=torch.float).to(device)
+    )
+
     print(f"Graph Created")
     graph.n_id = torch.arange(graph.num_nodes)
     mask = torch.tensor([True] * graph.num_nodes, dtype=torch.bool)
     # Training model
-    for epoch in range(100):
+    for epoch in range(20):
         print(f"Epoch: {epoch}")
+
+        gat_model.train()
+        tgn_model.train()
+        model.train()
+
         loader = NeighborLoader(graph, num_neighbors=[15, 10], batch_size=26000, input_nodes=mask)
         total_loss = 0
         for subg in tqdm(loader, desc="Training", leave=False):
@@ -92,16 +99,12 @@ def main():
 
             subg = subg.to(device)
             optimizer.zero_grad()
-            # 获取当前子图中的短语或节点ID
+
             current_phrases = [phrases[idx] for idx in subg.n_id.tolist()]
-            # 假设 infer_word2vec_embedding(p) 返回的是 numpy.ndarray
             word2vec_embeddings = [infer_word2vec_embedding(p, w2vmodel) for p in current_phrases]
-
-            # 将列表转换为 numpy 数组
-            word2vec_np_array = np.array(word2vec_embeddings)
-
-            # 将 numpy 数组转换为 PyTorch 张量
-            word2vec_output = torch.tensor(word2vec_np_array, dtype=torch.float).to(device)
+            # [num_nodes, 30]
+            word2vec_np = np.stack(word2vec_embeddings, axis=0).astype(np.float32)
+            word2vec_output = torch.from_numpy(word2vec_np).to(device)
             # Process node features with GAT
             gat_output = gat_model(subg.x, subg.edge_index)
             combined_output = torch.cat((gat_output, word2vec_output), dim=1)
@@ -124,9 +127,7 @@ def main():
             tgn_model.eval()
             model.eval()
             with torch.no_grad():
-                # 获取当前子图中的短语或节点ID
                 current_phrases = [phrases[idx] for idx in subg.n_id.tolist()]
-                # 假设 infer_word2vec_embedding(p) 返回的是 numpy.ndarray
                 word2vec_embeddings = [infer_word2vec_embedding(p, w2vmodel) for p in current_phrases]
 
                 # 将列表转换为 numpy 数组
