@@ -18,7 +18,7 @@ from model.PositionalEncoder import PositionalEncoder
 from model.TGN import TemporalGraphNetwork
 
 # 加载全局的 Word2Vec 模型和编码器
-w2vmodel = Word2Vec.load("word2vec_cadets_E3.model")
+w2vmodel = Word2Vec.load("../train/word2vec_cadets.model")
 encoder = PositionalEncoder(30)
 
 
@@ -62,7 +62,7 @@ def main():
     flag = torch.tensor([True] * graph.num_nodes, dtype=torch.bool).to(device)
 
     print(f"Graph Created")
-    for m_n in range(100):
+    for m_n in range(50):
         print(f"Epoch: {m_n}")
         gat_model.load_state_dict(
             torch.load(
@@ -88,7 +88,6 @@ def main():
             subg.edge_time = subg.edge_time.to(device)
             with torch.no_grad():
                 current_phrases = [phrases[idx] for idx in subg.n_id.tolist()]
-                # 假设 infer_word2vec_embedding(p) 返回的是 numpy.ndarray
                 word2vec_embeddings = [infer_word2vec_embedding(p) for p in current_phrases]
 
                 # 将列表转换为 numpy 数组
