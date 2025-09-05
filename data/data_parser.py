@@ -1,9 +1,11 @@
+
+# -*- coding: utf-8 -*-
 import argparse
 import json
 import os
 import random
 import re
-
+import shutil
 from tqdm import tqdm
 import networkx as nx
 import pickle as pkl
@@ -64,7 +66,7 @@ def process_data(file_path):
         if not os.path.exists(now_path):
             break
 
-        with open(now_path, 'r') as f:
+        with open(now_path, 'r', encoding='utf-8') as f:
             show(now_path)
             cnt = 0
             for line in f:
@@ -111,7 +113,7 @@ def process_edges(file_path, id_nodetype_map):
         if not os.path.exists(now_path):
             break
 
-        with open(now_path, 'r') as f, open(now_path+'.txt', 'w') as fw:
+        with open(now_path, 'r', encoding='utf-8') as f, open(now_path+'.txt', 'w', encoding='utf-8') as fw:
             cnt = 0
             for line in f:
                 cnt += 1
@@ -140,43 +142,44 @@ def process_edges(file_path, id_nodetype_map):
 
 def run_data_processing(dataset):
     if dataset == 'trace':
-        os.system('tar -zxvf ta1-trace-e3-official-1.json.tar.gz')
+        # os.system('tar -zxvf ta1-trace-e3-official-1.json.tar.gz')
         path_list = ['ta1-trace-e3-official-1.json']
     elif dataset == 'theia':
-        os.system('tar -zxvf ta1-theia-e3-official-1r.json.tar.gz')
-        os.system('tar -zxvf ta1-theia-e3-official-6r.json.tar.gz')
+        # os.system('tar -zxvf ta1-theia-e3-official-1r.json.tar.gz')
+        # os.system('tar -zxvf ta1-theia-e3-official-6r.json.tar.gz')
         path_list = ['ta1-theia-e3-official-1r.json', 'ta1-theia-e3-official-6r.json']
     elif dataset == 'cadets':
-        os.system('tar -zxvf ta1-cadets-e3-official.json.tar.gz')
-        os.system('tar -zxvf ta1-cadets-e3-official-2.json.tar.gz')
+        # os.system('tar -zxvf ta1-cadets-e3-official.json.tar.gz')
+        # os.system('tar -zxvf ta1-cadets-e3-official-2.json.tar.gz')
         path_list = ['ta1-cadets-e3-official.json', 'ta1-cadets-e3-official-2.json']
     else:
         print("Unsupported dataset.")
         return
+    base_path = dataset
 
     for path in path_list:
-        id_nodetype_map = process_data(path)
-        process_edges(path, id_nodetype_map)
+        id_nodetype_map = process_data("./"+base_path+"/"+path)
+        process_edges("./"+base_path+"/"+path, id_nodetype_map)
 
     if dataset == 'trace':
-        os.system('cp ta1-trace-e3-official-1.json.txt trace_train.txt')
-        os.system('cp ta1-trace-e3-official-1.json.4.txt trace_test.txt')
+        shutil.copy("./"+base_path+"/"+'ta1-trace-e3-official-1.json.txt', "./"+base_path+"/"+'trace_train.txt')
+        shutil.copy("./"+base_path+"/"+'ta1-trace-e3-official-1.json.4.txt', "./"+base_path+"/"+'trace_test.txt')
     elif dataset == 'theia':
-        os.system('cp ta1-theia-e3-official-1r.json.txt theia_train.txt')
-        os.system('cp ta1-theia-e3-official-6r.json.8.txt theia_test.txt')
+        shutil.copy("./"+base_path+"/"+'ta1-theia-e3-official-1r.json.txt', "./"+base_path+"/"+'theia_train.txt')
+        shutil.copy("./"+base_path+"/"+'ta1-theia-e3-official-6r.json.8.txt', "./"+base_path+"/"+'theia_test.txt')
     elif dataset == 'cadets':
-        os.system('cp ta1-cadets-e3-official.json.1.txt cadets_train.txt')
-        os.system('cp ta1-cadets-e3-official-2.json.txt cadets_test.txt')
+        shutil.copy("./"+base_path+"/"+'ta1-cadets-e3-official.json.1.txt', "./"+base_path+"/"+'cadets_train.txt')
+        shutil.copy("./"+base_path+"/"+'ta1-cadets-e3-official-2.json.txt', "./"+base_path+"/"+'cadets_test.txt')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CDM Parser')
-    parser.add_argument("--dataset", type=str, default="trace")
+    parser.add_argument("--dataset", type=str, default="cadets")
     args = parser.parse_args()
 
     if args.dataset not in ['trace', 'theia', 'cadets']:
         raise ValueError(f"Unsupported dataset: '{args.dataset}'. Supported options are: 'trace', 'theia', 'cadets'.")
 
-    run_data_processing(args.dataset)  # 调用 run_data_processing 函数
+    run_data_processing(args.dataset)
 
 
