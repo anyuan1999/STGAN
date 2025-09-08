@@ -1,18 +1,17 @@
 # STGAN
 
-Main code for **STGAN*: Detecting Host Threats via Fusion of Spatial-Temporal
-Features in Host Provenance Graphs**
+Main code for **STGAN: Detecting Host Threats via Fusion of Spatial-Temporal
+Features in Host Provenance Graphs** (WWW 2025 Oral) [Our Paper](https://dl.acm.org/doi/10.1145/3696410.3714925)
 
 ---
 
 ## 📖 Overview
 
-The overall workflow of STGAN is illustrated in above figure. STGAN accepts streaming audit log input and slices the log information into segments. For each subgraph within a segment, STGAN performs both spatial and temporal embedding.  
+STGAN accepts streaming audit log input and slices the log information into segments. For each subgraph within a segment, STGAN performs both spatial and temporal embedding.  
 
 - **Spatial Embedding**: STGAN constructs sentences based on the first-hop neighbors of each node and uses Word2Vec to learn semantic features. These semantic features are used as initial node embeddings, followed by Graph Attention Network (GAT) to extract structural information.  
 - **Temporal Embedding**: STGAN employs Temporal Graph Networks (TGN) to model temporal dependencies of host activities.  
 - **Fusion**: A multi-head self-attention mechanism integrates the spatial and temporal embeddings into a unified representation.  
- 
 
 ---
 
@@ -49,7 +48,7 @@ The overall workflow of STGAN is illustrated in above figure. STGAN accepts stre
 
 ---
 
-## 🚀 Start
+## 🚀 End-to-End Start
 
 1. **Clone the repository**
    ```bash
@@ -69,6 +68,24 @@ The overall workflow of STGAN is illustrated in above figure. STGAN accepts stre
 5. **Evaluate**
     ```bash
     python eval_trace.py
+
+## 🚀 Quick Start
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-repo/STGAN.git
+   cd STGAN
+2. **Set up environment**
+    ```bash
+    conda create -n stgan python=3.9
+    conda activate stgan
+    pip install -r requirements.txt
+3. **Prepare datasets**
+    ```bash
+    python data_parser.py --dataset "trace"
+4. **Evaluate**
+    ```bash
+    python eval_trace.py
+
 ## 📑 Citation
 
 If you use this repository, please cite our paper:
