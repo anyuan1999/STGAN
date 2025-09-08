@@ -1,7 +1,9 @@
-# STGAN
+# STGAN: Detecting Host Threats via Fusion of Spatial-Temporal Features in Host Provenance Graphs
 
 Main code for **STGAN: Detecting Host Threats via Fusion of Spatial-Temporal
 Features in Host Provenance Graphs** (WWW 2025 Oral) [Our Paper](https://dl.acm.org/doi/10.1145/3696410.3714925)
+
+![STGAN Architecture](overview.png)
 
 ---
 
